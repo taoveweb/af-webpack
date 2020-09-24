@@ -45,9 +45,24 @@ var hadRuntimeError = false;
 ErrorOverlay.startReportingRuntimeErrors({
   onError: function() {
     hadRuntimeError = true;
+
+    // workaround since react-error-overlay doesn't provide any option to suppress overlay.
+    // we still need runtime error notification because of the recovery process
+    if (process.env.ERROR_OVERLAY === 'none') {
+      suppressErrorOverlay();
+    }
   },
-  filename: '/static/js/bundle.js',
 });
+
+function suppressErrorOverlay() {
+  setTimeout(() => {
+    if (document.querySelector('iframe')) {
+      ErrorOverlay.dismissBuildError();
+      ErrorOverlay.dismissRuntimeErrors();
+      return;
+    }
+  });
+}
 
 if (module.hot && typeof module.hot.dispose === 'function') {
   module.hot.dispose(function() {
@@ -70,13 +85,8 @@ if (process.env.SOCKET_SERVER !== 'none') {
         }),
     {
       onclose() {
-        if (
-          typeof console !== 'undefined' &&
-          typeof console.info === 'function'
-        ) {
-          console.info(
-            'The development server has disconnected.\nRefresh the page if necessary.',
-          );
+        if (typeof console !== 'undefined' && typeof console.info === 'function') {
+          console.info('The development server has disconnected.\nRefresh the page if necessary.');
         }
       },
       onmessage(e) {

@@ -1,11 +1,10 @@
 import { existsSync, readFileSync } from 'fs';
-import { join, resolve } from 'path';
+import { resolve } from 'path';
 import assert from 'assert';
 import stripJsonComments from 'strip-json-comments';
 import didyoumean from 'didyoumean';
 import chalk from 'chalk';
-import isEqual from 'lodash.isequal';
-import isPlainObject from 'is-plain-object';
+import { isPlainObject, isEqual } from 'lodash';
 import { clearConsole } from '../reactDevUtils';
 import { watch, unwatch } from './watch';
 import getPlugins from './getPlugins';
@@ -79,7 +78,7 @@ export default function getUserConfig(opts = {}) {
     preprocessor,
   } = opts;
 
-  // TODO: 支持数组的形式？
+  // TODO: 支持数组的形式？\
 
   // Read config from configFile and `${configFile}.js`
   const rcFile = resolve(cwd, configFile);
@@ -167,52 +166,51 @@ export default function getUserConfig(opts = {}) {
     devServer = _devServer;
 
     const watcher = watchConfigs(opts);
-    if (watcher) {
-      watcher.on('all', () => {
-        try {
-          if (watchOpts.beforeChange) {
-            watchOpts.beforeChange();
-          }
-
-          const { config: newConfig } = getUserConfig({
-            ...opts,
-            setConfig(newConfig) {
-              config = newConfig;
-            },
-          });
-
-          // 从失败中恢复过来，需要 reload 一次
-          if (configFailed) {
-            configFailed = false;
-            reload();
-          }
-
-          // 比较，然后执行 onChange
-          for (const plugin of plugins) {
-            const { name, onChange } = plugin;
-
-            if (!isEqual(newConfig[name], config[name])) {
-              debug(
-                `Config ${name} changed, from ${JSON.stringify(
-                  config[name],
-                )} to ${JSON.stringify(newConfig[name])}`,
-              );
-              (onChange || restart.bind(null, `${name} changed`)).call(null, {
-                name,
-                val: config[name],
-                newVal: newConfig[name],
-                config,
-                newConfig,
-              });
-            }
-          }
-        } catch (e) {
-          configFailed = true;
-          console.error(chalk.red(`Watch handler failed, since ${e.message}`));
-          console.error(e);
+    watcher.on('all', () => {
+      try {
+        if (watchOpts.beforeChange) {
+          watchOpts.beforeChange();
         }
-      });
-    }
+
+        const { config: newConfig } = getUserConfig({
+          ...opts,
+          setConfig(newConfig) {
+            config = newConfig;
+          },
+        });
+
+        // 从失败中恢复过来，需要 reload 一次
+        if (configFailed) {
+          configFailed = false;
+          reload();
+        }
+
+        // 比较，然后执行 onChange
+        for (const plugin of plugins) {
+          const { name, onChange } = plugin;
+
+          if (!isEqual(newConfig[name], config[name])) {
+            debug(
+              `Config ${name} changed, from ${JSON.stringify(config[name])} to ${JSON.stringify(
+                newConfig[name],
+              )}`,
+            );
+            (onChange || restart.bind(null, `${name} changed`)).call(null, {
+              name,
+              val: config[name],
+              newVal: newConfig[name],
+              config,
+              newConfig,
+            });
+          }
+        }
+      } catch (e) {
+        configFailed = true;
+        console.error(chalk.red(`Watch handler failed, since ${e.message}`));
+        console.error(e);
+      }
+    });
+    return watcher;
   }
 
   debug(`UserConfig: ${JSON.stringify(config)}`);
